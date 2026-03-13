@@ -29,6 +29,8 @@ class MHL_Sensor_Example_Scenario():
         self._ctrl_mode = ctrl_mode
         if self._sonar is not None:
             self._sonar.sonar_initialize(include_unlabelled=True)
+            from isaacsim.oceansim.modules.sonar_web_dashboard.sonar_bridge import register_sonar
+            register_sonar(self._sonar._name, self._sonar)
         if self._cam is not None:
             self._cam.initialize()
         if self._DVL is not None:
@@ -108,6 +110,8 @@ class MHL_Sensor_Example_Scenario():
         # Because these two sensors create annotator cache in GPU,
         # close() will detach annotator from render product and clear the cache.
         if self._sonar is not None:
+            from isaacsim.oceansim.modules.sonar_web_dashboard.sonar_bridge import unregister_sonar
+            unregister_sonar(self._sonar._name)
             self._sonar.close()
         if self._cam is not None:
             self._cam.close()
@@ -135,7 +139,8 @@ class MHL_Sensor_Example_Scenario():
         self._time += step
         
         if self._sonar is not None:
-            self._sonar.make_sonar_data()
+            from isaacsim.oceansim.modules.sonar_web_dashboard.sonar_bridge import get_params
+            self._sonar.make_sonar_data(**get_params(self._sonar._name))
         if self._cam is not None:
             self._cam.render()
         if self._DVL is not None:

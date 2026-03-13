@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OceanSim Sonar Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Top bar -->
+    <header class="top-bar">
+        <div class="top-bar-left">
+            <h1>OceanSim</h1>
+            <span class="subtitle">Sonar Parameter Tuning</span>
+        </div>
+        <div class="top-bar-center">
+            <label>Sensor:
+                <select id="sonar-select">
+                    <option value="">-- no sonars detected --</option>
+                </select>
+            </label>
+            <div class="ws-status-inline">
+                <span class="status-dot waiting" id="ws-dot"></span>
+                <span id="ws-status">Connecting...</span>
+                <span id="fps-counter"></span>
+            </div>
+        </div>
+        <div class="top-bar-right">
+            <button class="btn btn-small btn-toggle" id="mode-single" title="Single view">Single</button>
+            <button class="btn btn-small" id="mode-compare" title="A/B comparison">Compare</button>
+            <button class="btn btn-small" id="mode-sweep" title="Parameter sweep demo">Sweep</button>
+        </div>
+    </header>
+
+    <!-- Main content -->
+    <div class="main">
+
+        <!-- ========== SINGLE VIEW ========== -->
+        <div class="view-mode" id="view-single">
+            <div class="sonar-panel">
+                <img id="sonar-image" alt="Sonar output - load a scene to begin">
+            </div>
+        </div>
+
+        <!-- ========== A/B COMPARE VIEW ========== -->
+        <div class="view-mode hidden" id="view-compare">
+            <div class="compare-container">
+                <div class="compare-side">
+                    <div class="compare-label">A <span class="compare-preset-name" id="compare-a-name">Current</span></div>
+                    <img id="compare-img-a" class="compare-img" alt="A">
+                </div>
+                <div class="compare-divider"></div>
+                <div class="compare-side">
+                    <div class="compare-label">B <span class="compare-preset-name" id="compare-b-name">Snapshot</span></div>
+                    <img id="compare-img-b" class="compare-img" alt="B">
+                </div>
+            </div>
+            <div class="compare-controls">
+                <button class="btn btn-accent" id="snapshot-btn">Snapshot current -> B</button>
+                <button class="btn btn-small" id="swap-ab-btn">Swap A/B</button>
+            </div>
+        </div>
+
+        <!-- ========== SWEEP VIEW ========== -->
+        <div class="view-mode hidden" id="view-sweep">
+            <div class="sweep-display">
+                <img id="sweep-image" class="sweep-img" alt="Sweep">
+                <div class="sweep-overlay">
+                    <span id="sweep-param-label"></span>
+                    <span id="sweep-param-value"></span>
+                </div>
+            </div>
+            <div class="sweep-controls">
+                <label>Parameter:
+                    <select id="sweep-param">
+                        <option value="attenuation">Attenuation</option>
+                        <option value="gau_noise_param">Gaussian Noise</option>
+                        <option value="ray_noise_param">Rayleigh Noise</option>
+                        <option value="intensity_offset">Intensity Offset</option>
+                        <option value="intensity_gain">Intensity Gain</option>
+                        <option value="central_peak">Central Peak</option>
+                        <option value="central_std">Central Std</option>
+                    </select>
+                </label>
+                <label>From: <input type="number" id="sweep-from" value="0" step="0.1" class="sweep-num"></label>
+                <label>To: <input type="number" id="sweep-to" value="1" step="0.1" class="sweep-num"></label>
+                <label>Steps: <input type="number" id="sweep-steps" value="10" min="3" max="30" class="sweep-num"></label>
+                <label>Speed:
+                    <select id="sweep-speed">
+                        <option value="500">Slow</option>
+                        <option value="300" selected>Medium</option>
+                        <option value="150">Fast</option>
+                    </select>
+                </label>
+                <button class="btn btn-accent" id="sweep-start-btn">Start Sweep</button>
+                <button class="btn btn-small hidden" id="sweep-stop-btn">Stop</button>
+            </div>
+        </div>
+
+        <!-- ========== RIGHT PANEL (always visible) ========== -->
+        <div class="controls-panel">
+            <div class="panel-section">
+                <h3>Presets</h3>
+                <div class="preset-grid" id="preset-grid"></div>
+                <div class="preset-actions">
+                    <input type="text" id="preset-name-input" placeholder="Preset name..." class="preset-name-input">
+                    <button class="btn btn-small btn-accent" id="save-preset-btn">Save</button>
+                </div>
+            </div>
+
+            <div class="panel-divider"></div>
+
+            <div class="panel-section">
+                <h3>Parameters</h3>
+
+                <div class="control-group">
+                    <label>Binning Method</label>
+                    <select id="binning_method">
+                        <option value="sum">sum</option>
+                        <option value="mean">mean</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label>Normalizing Method</label>
+                    <select id="normalizing_method">
+                        <option value="range">range</option>
+                        <option value="all">all</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label>Attenuation <span class="reset-btn" data-param="attenuation" title="Reset to default">&#x21ba;</span></label>
+                    <div class="control-row">
+                        <input type="range" id="attenuation-slider" min="0" max="1" step="0.01" value="0.1">
+                        <input type="number" id="attenuation-num" min="0" max="1" step="0.01" value="0.1">
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Gaussian Noise <span class="reset-btn" data-param="gau_noise_param" title="Reset to default">&#x21ba;</span></label>
+                    <div class="control-row">
+                        <input type="range" id="gau_noise_param-slider" min="0" max="1" step="0.01" value="0.2">
+                        <input type="number" id="gau_noise_param-num" min="0" max="1" step="0.01" value="0.2">
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Rayleigh Noise <span class="reset-btn" data-param="ray_noise_param" title="Reset to default">&#x21ba;</span></label>
+                    <div class="control-row">
+                        <input type="range" id="ray_noise_param-slider" min="0" max="0.5" step="0.005" value="0.05">
+                        <input type="number" id="ray_noise_param-num" min="0" max="0.5" step="0.005" value="0.05">
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Intensity Offset <span class="reset-btn" data-param="intensity_offset" title="Reset to default">&#x21ba;</span></label>
+                    <div class="control-row">
+                        <input type="range" id="intensity_offset-slider" min="-1" max="1" step="0.01" value="0">
+                        <input type="number" id="intensity_offset-num" min="-1" max="1" step="0.01" value="0">
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Intensity Gain <span class="reset-btn" data-param="intensity_gain" title="Reset to default">&#x21ba;</span></label>
+                    <div class="control-row">
+                        <input type="range" id="intensity_gain-slider" min="0.1" max="5" step="0.1" value="1">
+                        <input type="number" id="intensity_gain-num" min="0.1" max="5" step="0.1" value="1">
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Central Peak <span class="reset-btn" data-param="central_peak" title="Reset to default">&#x21ba;</span></label>
+                    <div class="control-row">
+                        <input type="range" id="central_peak-slider" min="0" max="10" step="0.1" value="2">
+                        <input type="number" id="central_peak-num" min="0" max="10" step="0.1" value="2">
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Central Std <span class="reset-btn" data-param="central_std" title="Reset to default">&#x21ba;</span></label>
+                    <div class="control-row">
+                        <input type="range" id="central_std-slider" min="0.0001" max="0.1" step="0.0001" value="0.001">
+                        <input type="number" id="central_std-num" min="0.0001" max="0.1" step="0.0001" value="0.001">
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel-divider"></div>
+
+            <button class="btn btn-primary" id="apply-btn">Apply Parameters</button>
+            <label id="auto-apply-label">
+                <input type="checkbox" id="auto-apply" checked> Live update
+            </label>
+
+            <button class="btn btn-secondary" id="reset-all-btn">Reset to Defaults</button>
+            <button class="btn btn-secondary" id="download-btn">Download Raw Data</button>
+
+            <div class="sonar-info" id="sonar-info"></div>
+        </div>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>

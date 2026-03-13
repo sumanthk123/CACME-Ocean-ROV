@@ -20,6 +20,8 @@ icon = "data/icon.png"
 "omni.kit.uiapp" = {}
 "omni.isaac.ui" = {}
 "omni.isaac.core" = {}
+"omni.services.core" = {}
+"omni.services.transport.server.http" = {}
 
 
 [[python.module]]
@@ -27,6 +29,9 @@ name = "isaacsim.oceansim.modules.SensorExample_python"
 
 [[python.module]]
 name = "isaacsim.oceansim.modules.colorpicker_python"
+
+[[python.module]]
+name = "isaacsim.oceansim.modules.sonar_web_dashboard"
 
 
 
