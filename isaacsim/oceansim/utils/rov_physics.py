@@ -276,21 +276,23 @@ class ROVPhysicsModel:
         return total_force, total_torque
 
     def _buoyancy(self, roll, pitch):
-        """Full buoyancy force to counteract PhysX gravity + restoring moments.
+        """Net buoyancy restoring force + moments.
 
-        PhysX applies gravity (W = mg), so we apply the FULL buoyancy force
-        (B = rho*g*V) upward. The net effect is B - W, which should be slightly
-        positive for a properly trimmed ROV. Restoring moments come from the
-        center-of-buoyancy offset above center-of-gravity.
+        When PhysX gravity is DISABLED (as in OceanSim's default ROV setup),
+        we compute the NET restoring force (B - W). This gives a small upward
+        force for a positively trimmed ROV.
+        When PhysX gravity is ENABLED, this should be changed to full buoyancy (B only).
         """
+        W = self.mass * self.g
         B = self.rho * self.g * self.volume
+        net = B - W  # positive = positively buoyant (floats up)
         d = self.cob_offset
 
         f = np.zeros(6)
-        # Full buoyancy force (upward = negative Z in NED)
-        f[0] = B * np.sin(pitch)
-        f[1] = -B * np.cos(pitch) * np.sin(roll)
-        f[2] = -B * np.cos(pitch) * np.cos(roll)
+        # Net restoring force (upward = negative Z in NED)
+        f[0] = -net * np.sin(pitch)
+        f[1] = net * np.cos(pitch) * np.sin(roll)
+        f[2] = -net * np.cos(pitch) * np.cos(roll)
         # Restoring torques
         f[3] = -d * B * np.cos(pitch) * np.sin(roll)
         f[4] = -d * B * np.sin(pitch)
