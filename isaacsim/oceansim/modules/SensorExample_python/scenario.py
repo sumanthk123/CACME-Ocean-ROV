@@ -280,10 +280,52 @@ class MHL_Sensor_Example_Scenario():
             tc = np.array(self._torque_cmd._base_command, dtype=np.float64)
 
             if self._use_rov_physics and self._rov_physics is not None:
-                # Add buoyancy as a constant upward acceleration (body-local Y-up)
-                # Plus WASD keyboard commands pass through directly
-                buoy_accel = 1.0  # small upward drift m/s^2
-                fc[1] += buoy_accel  # Y-up in local frame
+                # Get body velocity for drag computation
+                rob_prim = SingleRigidPrim(prim_path=get_prim_path(self._rob))
+                lin_vel_world = np.array(rob_prim.get_linear_velocity())
+                ang_vel_world = np.array(rob_prim.get_angular_velocity())
+
+                # Get orientation for frame conversion
+                orient_attr = self._rob.GetAttribute('xformOp:orient')
+                quat = orient_attr.Get()
+                if quat is not None:
+                    w_q = quat.GetReal()
+                    x_q, y_q, z_q = quat.GetImaginary()
+                    R = np.array([
+                        [1-2*(y_q*y_q+z_q*z_q), 2*(x_q*y_q-w_q*z_q),   2*(x_q*z_q+w_q*y_q)],
+                        [2*(x_q*y_q+w_q*z_q),   1-2*(x_q*x_q+z_q*z_q), 2*(y_q*z_q-w_q*x_q)],
+                        [2*(x_q*z_q-w_q*y_q),   2*(y_q*z_q+w_q*x_q),   1-2*(x_q*x_q+y_q*y_q)],
+                    ])
+                    body_lin = R.T @ lin_vel_world
+                    body_ang = R.T @ ang_vel_world
+                    pitch = np.arcsin(np.clip(-R[2, 0], -1, 1))
+                    roll = np.arctan2(R[2, 1], R[2, 2]) if abs(np.cos(pitch)) > 1e-6 else 0.0
+                    yaw = np.arctan2(R[1, 0], R[0, 0]) if abs(np.cos(pitch)) > 1e-6 else 0.0
+                else:
+                    body_lin = lin_vel_world
+                    body_ang = ang_vel_world
+                    R = np.eye(3)
+                    roll, pitch, yaw = 0.0, 0.0, 0.0
+
+                body_vel = [body_lin[0], body_lin[1], body_lin[2],
+                            body_ang[0], body_ang[1], body_ang[2]]
+
+                # Map keyboard to thruster commands [-1, 1]
+                max_cmd = 10.0
+                thruster_cmds = [
+                    fc[0] / max_cmd, fc[1] / max_cmd, fc[2] / max_cmd,
+                    tc[0] / max_cmd, tc[1] / max_cmd, tc[2] / max_cmd,
+                ]
+
+                # Compute hydro forces (body frame, Newtons)
+                force, torque = self._rov_physics.compute_forces(
+                    body_vel, [roll, pitch, yaw], thruster_cmds, dt=step
+                )
+
+                # Convert to acceleration (PhysxForceAPI uses acceleration mode)
+                mass = self._rov_physics.mass
+                fc = force / mass
+                tc = torque / mass
 
             # Apply via PhysxForceAPI (acceleration mode, local frame — proven working)
             self._rob_forceAPI.CreateForceAttr().Set(Gf.Vec3f(float(fc[0]), float(fc[1]), float(fc[2])))
