@@ -38,7 +38,7 @@ class MHL_Sensor_Example_Scenario():
         self._use_rov_physics = use_rov_physics
         if use_rov_physics:
             from ...utils.rov_physics import ROVPhysicsModel
-            self._rov_physics = ROVPhysicsModel()
+            self._rov_physics = ROVPhysicsModel(prim=self._rob)
             self._rov_physics.reset()
         if self._sonar is not None:
             self._sonar.sonar_initialize(include_unlabelled=True)
@@ -273,6 +273,10 @@ class MHL_Sensor_Example_Scenario():
 
         if self._ctrl_mode == "Manual control":
             if self._use_rov_physics and self._rov_physics is not None:
+                import carb as _carb_phys
+                if not hasattr(self, '_phys_frame_count'):
+                    self._phys_frame_count = 0
+                self._phys_frame_count += 1
                 try:
                     # Get body velocity and orientation from PhysX
                     rob_prim = SingleRigidPrim(prim_path=get_prim_path(self._rob))
@@ -329,11 +333,12 @@ class MHL_Sensor_Example_Scenario():
                     world_force = R @ force
                     world_torque = R @ torque
 
+                    if self._phys_frame_count % 60 == 1:
+                        _carb_phys.log_warn(f"[ROV PHYSICS] frame={self._phys_frame_count} cmd={[round(c,2) for c in thruster_cmds]} force={[round(x,1) for x in world_force]} torque={[round(x,1) for x in world_torque]}")
                     self._rob_forceAPI.CreateForceAttr().Set(Gf.Vec3f(*world_force))
                     self._rob_forceAPI.CreateTorqueAttr().Set(Gf.Vec3f(*world_torque))
                 except Exception as e:
-                    import carb
-                    carb.log_warn(f"[ROV PHYSICS] Error: {e}")
+                    _carb_phys.log_warn(f"[ROV PHYSICS] Error: {e}")
                     # Fallback to legacy control on error
                     force_cmd = Gf.Vec3f(*self._force_cmd._base_command)
                     torque_cmd = Gf.Vec3f(*self._torque_cmd._base_command)
