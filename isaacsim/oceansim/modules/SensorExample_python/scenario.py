@@ -327,8 +327,20 @@ class MHL_Sensor_Example_Scenario():
 
                     # Convert to acceleration (PhysxForceAPI uses acceleration mode)
                     mass = self._rov_physics.mass
-                    fc = np.array([float(force[0] / mass), float(force[1] / mass), float(force[2] / mass)])
-                    tc = np.array([float(torque[0] / mass), float(torque[1] / mass), float(torque[2] / mass)])
+                    fc = force / mass
+                    tc = torque / mass
+
+                    # Clamp accelerations to prevent instability
+                    max_accel = 20.0  # m/s^2 (about 2g)
+                    fc = np.clip(fc, -max_accel, max_accel)
+                    tc = np.clip(tc, -max_accel, max_accel)
+
+                    if not hasattr(self, '_phys_frame_count'):
+                        self._phys_frame_count = 0
+                    self._phys_frame_count += 1
+                    if self._phys_frame_count % 30 == 1:
+                        import carb
+                        carb.log_warn(f"[ROV PHYSICS] f={self._phys_frame_count} accel={[round(float(x),2) for x in fc]} vel={[round(float(x),2) for x in body_vel[:3]]} rpy={[round(float(x),2) for x in [roll,pitch,yaw]]}")
                 except Exception as e:
                     import carb
                     carb.log_warn(f"[ROV PHYSICS] Error (using keyboard fallback): {e}")
