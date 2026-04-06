@@ -153,9 +153,14 @@ def compute_mesh_volume_from_prim(prim):
         ]
         carb.log_info(f"[ROV PHYSICS] Bounding box: {[round(x,3) for x in bbox_size]} m")
 
-    # Volume estimate: use 60% of bounding box (typical for ROV frame)
-    fill_factor = 0.6
-    volume = bbox_size[0] * bbox_size[1] * bbox_size[2] * fill_factor
+    # Volume estimate from bounding box
+    # ROV frames are mostly open (thrusters, electronics tubes, empty space)
+    # Typical fill factor is 15-25% for frame-style ROVs like BlueROV2
+    # We target slightly positive buoyancy: volume = mass/rho + small excess
+    bbox_volume = bbox_size[0] * bbox_size[1] * bbox_size[2]
+    # Use mass-based estimate if mass is known (slightly positive buoyancy)
+    volume_for_neutral = mass / rho
+    volume = volume_for_neutral * 1.02  # 2% positive buoyancy
 
     carb.log_info(f"[ROV PHYSICS] Estimated volume: {volume:.6f} m^3, mass: {mass} kg")
 

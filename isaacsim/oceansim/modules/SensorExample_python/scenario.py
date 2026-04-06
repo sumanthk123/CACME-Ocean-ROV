@@ -56,6 +56,10 @@ class MHL_Sensor_Example_Scenario():
         if ctrl_mode == "Manual control":
             from ...utils.keyboard_cmd import keyboard_cmd
             self._rob_forceAPI = PhysxSchema.PhysxForceAPI.Apply(self._rob)
+            if use_rov_physics:
+                # Physics model outputs Newtons in world frame
+                self._rob_forceAPI.CreateModeAttr().Set("force")
+                self._rob_forceAPI.CreateWorldFrameEnabledAttr().Set(True)
             self._force_cmd = keyboard_cmd(base_command=np.array([0.0, 0.0, 0.0]),
                                       input_keyboard_mapping={
                                         "W": [10.0, 0.0, 0.0], "S": [-10.0, 0.0, 0.0],
@@ -335,8 +339,8 @@ class MHL_Sensor_Example_Scenario():
 
                     if self._phys_frame_count % 60 == 1:
                         _carb_phys.log_warn(f"[ROV PHYSICS] frame={self._phys_frame_count} cmd={[round(c,2) for c in thruster_cmds]} force={[round(x,1) for x in world_force]} torque={[round(x,1) for x in world_torque]}")
-                    self._rob_forceAPI.CreateForceAttr().Set(Gf.Vec3f(*world_force))
-                    self._rob_forceAPI.CreateTorqueAttr().Set(Gf.Vec3f(*world_torque))
+                    self._rob_forceAPI.CreateForceAttr().Set(Gf.Vec3f(float(world_force[0]), float(world_force[1]), float(world_force[2])))
+                    self._rob_forceAPI.CreateTorqueAttr().Set(Gf.Vec3f(float(world_torque[0]), float(world_torque[1]), float(world_torque[2])))
                 except Exception as e:
                     _carb_phys.log_warn(f"[ROV PHYSICS] Error: {e}")
                     # Fallback to legacy control on error
