@@ -153,13 +153,10 @@ def compute_mesh_volume_from_prim(prim):
         ]
         carb.log_info(f"[ROV PHYSICS] Bounding box: {[round(x,3) for x in bbox_size]} m")
 
-    # Volume estimate from bounding box
-    # ROV frames are mostly open (thrusters, electronics tubes, empty space)
-    # Typical fill factor is 15-25% for frame-style ROVs like BlueROV2
-    # We target slightly positive buoyancy: volume = mass/rho + small excess
-    bbox_volume = bbox_size[0] * bbox_size[1] * bbox_size[2]
-    # Use mass-based estimate if mass is known (slightly positive buoyancy)
-    volume_for_neutral = mass / rho
+    # Volume estimate: target slightly positive buoyancy
+    # volume = mass/water_density gives neutral buoyancy; add 2% for positive
+    rho_water = 997.0
+    volume_for_neutral = mass / rho_water
     volume = volume_for_neutral * 1.02  # 2% positive buoyancy
 
     carb.log_info(f"[ROV PHYSICS] Estimated volume: {volume:.6f} m^3, mass: {mass} kg")
@@ -290,10 +287,10 @@ class ROVPhysicsModel:
         d = self.cob_offset
 
         f = np.zeros(6)
-        # Full buoyancy (upward in NED = negative Z)
-        f[0] = -B * np.sin(pitch)
-        f[1] = B * np.cos(pitch) * np.sin(roll)
-        f[2] = B * np.cos(pitch) * np.cos(roll)
+        # Full buoyancy force (upward = negative Z in NED)
+        f[0] = B * np.sin(pitch)
+        f[1] = -B * np.cos(pitch) * np.sin(roll)
+        f[2] = -B * np.cos(pitch) * np.cos(roll)
         # Restoring torques
         f[3] = -d * B * np.cos(pitch) * np.sin(roll)
         f[4] = -d * B * np.sin(pitch)
