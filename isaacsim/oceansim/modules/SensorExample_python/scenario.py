@@ -280,52 +280,61 @@ class MHL_Sensor_Example_Scenario():
             tc = np.array(self._torque_cmd._base_command, dtype=np.float64)
 
             if self._use_rov_physics and self._rov_physics is not None:
-                # Get body velocity for drag computation
-                rob_prim = SingleRigidPrim(prim_path=get_prim_path(self._rob))
-                lin_vel_world = np.array(rob_prim.get_linear_velocity())
-                ang_vel_world = np.array(rob_prim.get_angular_velocity())
+                try:
+                    # Get body velocity for drag computation
+                    if not hasattr(self, '_rob_rigid_prim'):
+                        self._rob_rigid_prim = SingleRigidPrim(prim_path=get_prim_path(self._rob))
+                    lin_vel_world = np.array(self._rob_rigid_prim.get_linear_velocity())
+                    ang_vel_world = np.array(self._rob_rigid_prim.get_angular_velocity())
 
-                # Get orientation for frame conversion
-                orient_attr = self._rob.GetAttribute('xformOp:orient')
-                quat = orient_attr.Get()
-                if quat is not None:
-                    w_q = quat.GetReal()
-                    x_q, y_q, z_q = quat.GetImaginary()
-                    R = np.array([
-                        [1-2*(y_q*y_q+z_q*z_q), 2*(x_q*y_q-w_q*z_q),   2*(x_q*z_q+w_q*y_q)],
-                        [2*(x_q*y_q+w_q*z_q),   1-2*(x_q*x_q+z_q*z_q), 2*(y_q*z_q-w_q*x_q)],
-                        [2*(x_q*z_q-w_q*y_q),   2*(y_q*z_q+w_q*x_q),   1-2*(x_q*x_q+y_q*y_q)],
-                    ])
-                    body_lin = R.T @ lin_vel_world
-                    body_ang = R.T @ ang_vel_world
-                    pitch = np.arcsin(np.clip(-R[2, 0], -1, 1))
-                    roll = np.arctan2(R[2, 1], R[2, 2]) if abs(np.cos(pitch)) > 1e-6 else 0.0
-                    yaw = np.arctan2(R[1, 0], R[0, 0]) if abs(np.cos(pitch)) > 1e-6 else 0.0
-                else:
-                    body_lin = lin_vel_world
-                    body_ang = ang_vel_world
-                    R = np.eye(3)
-                    roll, pitch, yaw = 0.0, 0.0, 0.0
+                    # Get orientation for frame conversion
+                    orient_attr = self._rob.GetAttribute('xformOp:orient')
+                    quat = orient_attr.Get()
+                    if quat is not None:
+                        w_q = float(quat.GetReal())
+                        im = quat.GetImaginary()
+                        x_q, y_q, z_q = float(im[0]), float(im[1]), float(im[2])
+                        R = np.array([
+                            [1-2*(y_q*y_q+z_q*z_q), 2*(x_q*y_q-w_q*z_q),   2*(x_q*z_q+w_q*y_q)],
+                            [2*(x_q*y_q+w_q*z_q),   1-2*(x_q*x_q+z_q*z_q), 2*(y_q*z_q-w_q*x_q)],
+                            [2*(x_q*z_q-w_q*y_q),   2*(y_q*z_q+w_q*x_q),   1-2*(x_q*x_q+y_q*y_q)],
+                        ])
+                        body_lin = R.T @ lin_vel_world
+                        body_ang = R.T @ ang_vel_world
+                        cp = np.cos(np.arcsin(np.clip(-R[2, 0], -1, 1)))
+                        pitch = np.arcsin(np.clip(-R[2, 0], -1, 1))
+                        roll = np.arctan2(R[2, 1], R[2, 2]) if abs(cp) > 1e-6 else 0.0
+                        yaw = np.arctan2(R[1, 0], R[0, 0]) if abs(cp) > 1e-6 else 0.0
+                    else:
+                        body_lin = lin_vel_world
+                        body_ang = ang_vel_world
+                        roll, pitch, yaw = 0.0, 0.0, 0.0
 
-                body_vel = [body_lin[0], body_lin[1], body_lin[2],
-                            body_ang[0], body_ang[1], body_ang[2]]
+                    body_vel = [float(body_lin[0]), float(body_lin[1]), float(body_lin[2]),
+                                float(body_ang[0]), float(body_ang[1]), float(body_ang[2])]
 
-                # Map keyboard to thruster commands [-1, 1]
-                max_cmd = 10.0
-                thruster_cmds = [
-                    fc[0] / max_cmd, fc[1] / max_cmd, fc[2] / max_cmd,
-                    tc[0] / max_cmd, tc[1] / max_cmd, tc[2] / max_cmd,
-                ]
+                    # Map keyboard to thruster commands [-1, 1]
+                    max_cmd = 10.0
+                    thruster_cmds = [
+                        float(fc[0] / max_cmd), float(fc[1] / max_cmd), float(fc[2] / max_cmd),
+                        float(tc[0] / max_cmd), float(tc[1] / max_cmd), float(tc[2] / max_cmd),
+                    ]
 
-                # Compute hydro forces (body frame, Newtons)
-                force, torque = self._rov_physics.compute_forces(
-                    body_vel, [roll, pitch, yaw], thruster_cmds, dt=step
-                )
+                    # Compute hydro forces (body frame, Newtons)
+                    force, torque = self._rov_physics.compute_forces(
+                        body_vel, [roll, pitch, yaw], thruster_cmds, dt=step
+                    )
 
-                # Convert to acceleration (PhysxForceAPI uses acceleration mode)
-                mass = self._rov_physics.mass
-                fc = force / mass
-                tc = torque / mass
+                    # Convert to acceleration (PhysxForceAPI uses acceleration mode)
+                    mass = self._rov_physics.mass
+                    fc = np.array([float(force[0] / mass), float(force[1] / mass), float(force[2] / mass)])
+                    tc = np.array([float(torque[0] / mass), float(torque[1] / mass), float(torque[2] / mass)])
+                except Exception as e:
+                    import carb
+                    carb.log_warn(f"[ROV PHYSICS] Error (using keyboard fallback): {e}")
+                    import traceback
+                    carb.log_warn(f"[ROV PHYSICS] {traceback.format_exc()}")
+                    # fc and tc remain as keyboard values (fallback)
 
             # Apply via PhysxForceAPI (acceleration mode, local frame — proven working)
             self._rob_forceAPI.CreateForceAttr().Set(Gf.Vec3f(float(fc[0]), float(fc[1]), float(fc[2])))
