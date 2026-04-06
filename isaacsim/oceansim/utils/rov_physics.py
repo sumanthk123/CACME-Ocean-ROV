@@ -234,10 +234,12 @@ class ROVPhysicsModel:
         """
         vel = np.array(body_vel, dtype=np.float64)
 
-        # Isaac Sim (X-fwd, Y-up, Z-right) -> Fossen NED (X-fwd, Y-right, Z-down)
+        # Isaac Sim Z-up (X-fwd, Y-left, Z-up) -> Fossen NED (X-fwd, Y-right, Z-down)
         vel_ned = vel.copy()
-        vel_ned[1], vel_ned[2] = vel[2], -vel[1]
-        vel_ned[4], vel_ned[5] = vel[5], -vel[4]
+        vel_ned[1] = -vel[1]   # Y: left -> right (negate)
+        vel_ned[2] = -vel[2]   # Z: up -> down (negate)
+        vel_ned[4] = -vel[4]   # angular Y: negate
+        vel_ned[5] = -vel[5]   # angular Z: negate
 
         roll, pitch, yaw = orientation_rpy
 
@@ -251,9 +253,11 @@ class ROVPhysicsModel:
 
         hydro = f_buoy + f_damping
 
-        # NED -> Isaac Sim frame
-        hydro[1], hydro[2] = -hydro[2], hydro[1]
-        hydro[4], hydro[5] = -hydro[5], hydro[4]
+        # NED -> Isaac Sim Z-up frame
+        hydro[1] = -hydro[1]   # Y: right -> left (negate)
+        hydro[2] = -hydro[2]   # Z: down -> up (negate)
+        hydro[4] = -hydro[4]   # angular Y: negate
+        hydro[5] = -hydro[5]   # angular Z: negate
 
         # Thruster forces
         thrust_force = np.zeros(6)
