@@ -243,10 +243,13 @@ class ROVPhysicsModel:
 
         f_buoy = self._buoyancy(roll, pitch)
         f_damping = self._damping(vel_ned)
-        f_added_mass = self._added_mass(vel_ned, dt)
-        f_coriolis = self._coriolis(vel_ned)
+        # Added mass and Coriolis are omitted when using PhysX as the integrator,
+        # since PhysX already handles rigid body inertia. Including them causes
+        # double-counting that creates instability (added mass opposes all acceleration,
+        # effectively making the vehicle unmovable).
+        # These should only be used in a standalone Fossen integrator (no physics engine).
 
-        hydro = f_buoy + f_damping + f_added_mass + f_coriolis
+        hydro = f_buoy + f_damping
 
         # NED -> Isaac Sim frame
         hydro[1], hydro[2] = -hydro[2], hydro[1]

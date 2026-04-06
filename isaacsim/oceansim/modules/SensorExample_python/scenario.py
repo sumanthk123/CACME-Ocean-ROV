@@ -58,7 +58,12 @@ class MHL_Sensor_Example_Scenario():
             self._rob_forceAPI = PhysxSchema.PhysxForceAPI.Apply(self._rob)
             if use_rov_physics:
                 import carb
-                carb.log_warn("[ROV PHYSICS] Physics model enabled (no PhysX mods)")
+                # Zero PhysX damping — our Fossen model computes drag explicitly
+                rob_rb_api = PhysxSchema.PhysxRigidBodyAPI(self._rob)
+                if rob_rb_api:
+                    rob_rb_api.GetLinearDampingAttr().Set(0.0)
+                    rob_rb_api.GetAngularDampingAttr().Set(0.0)
+                carb.log_warn("[ROV PHYSICS] Zeroed PhysX damping, physics model active")
             self._force_cmd = keyboard_cmd(base_command=np.array([0.0, 0.0, 0.0]),
                                       input_keyboard_mapping={
                                         "W": [10.0, 0.0, 0.0], "S": [-10.0, 0.0, 0.0],
@@ -329,11 +334,6 @@ class MHL_Sensor_Example_Scenario():
                     mass = self._rov_physics.mass
                     fc = force / mass
                     tc = torque / mass
-
-                    # Clamp accelerations to prevent instability
-                    max_accel = 20.0  # m/s^2 (about 2g)
-                    fc = np.clip(fc, -max_accel, max_accel)
-                    tc = np.clip(tc, -max_accel, max_accel)
 
                     if not hasattr(self, '_phys_frame_count'):
                         self._phys_frame_count = 0
