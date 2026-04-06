@@ -57,9 +57,21 @@ class MHL_Sensor_Example_Scenario():
             from ...utils.keyboard_cmd import keyboard_cmd
             self._rob_forceAPI = PhysxSchema.PhysxForceAPI.Apply(self._rob)
             if use_rov_physics:
-                # Physics model outputs Newtons in world frame
-                self._rob_forceAPI.CreateModeAttr().Set("force")
-                self._rob_forceAPI.CreateWorldFrameEnabledAttr().Set(True)
+                # Set up direct PhysX simulation interface for force application
+                from pxr import UsdUtils, PhysicsSchemaTools
+                from isaacsim.core.utils.stage import get_current_stage
+                import carb
+                stage = get_current_stage()
+                self._physx_stage_id = UsdUtils.StageCache.Get().GetId(stage).ToLongInt()
+                self._physx_body_id = PhysicsSchemaTools.sdfPathToInt(self._rob.GetPath())
+                # Also re-enable gravity (our physics model handles buoyancy explicitly)
+                rob_rb_api = PhysxSchema.PhysxRigidBodyAPI(self._rob)
+                if rob_rb_api:
+                    rob_rb_api.GetDisableGravityAttr().Set(False)
+                    # Zero out PhysX built-in damping (our model computes drag)
+                    rob_rb_api.GetLinearDampingAttr().Set(0.0)
+                    rob_rb_api.GetAngularDampingAttr().Set(0.0)
+                    carb.log_warn(f"[ROV PHYSICS] Enabled gravity, zeroed PhysX damping for physics model")
             self._force_cmd = keyboard_cmd(base_command=np.array([0.0, 0.0, 0.0]),
                                       input_keyboard_mapping={
                                         "W": [10.0, 0.0, 0.0], "S": [-10.0, 0.0, 0.0],
@@ -339,8 +351,21 @@ class MHL_Sensor_Example_Scenario():
 
                     if self._phys_frame_count % 60 == 1:
                         _carb_phys.log_warn(f"[ROV PHYSICS] frame={self._phys_frame_count} cmd={[round(c,2) for c in thruster_cmds]} force={[round(x,1) for x in world_force]} torque={[round(x,1) for x in world_torque]}")
-                    self._rob_forceAPI.CreateForceAttr().Set(Gf.Vec3f(float(world_force[0]), float(world_force[1]), float(world_force[2])))
-                    self._rob_forceAPI.CreateTorqueAttr().Set(Gf.Vec3f(float(world_torque[0]), float(world_torque[1]), float(world_torque[2])))
+
+                    # Apply forces via PhysX simulation interface (bypasses USD attributes)
+                    import carb
+                    from omni.physx import get_physx_simulation_interface
+                    psi = get_physx_simulation_interface()
+                    # Get current position for force application point (center of mass)
+                    pos_attr = self._rob.GetAttribute('xformOp:translate')
+                    pos = pos_attr.Get() if pos_attr else Gf.Vec3f(0, 0, 0)
+                    # Apply force at center of mass (world frame)
+                    psi.apply_force_at_pos(
+                        self._physx_stage_id, self._physx_body_id,
+                        carb.Float3(float(world_force[0]), float(world_force[1]), float(world_force[2])),
+                        carb.Float3(float(pos[0]), float(pos[1]), float(pos[2]))
+                    )
+                    # TODO: Apply torque via psi when method is available
                 except Exception as e:
                     _carb_phys.log_warn(f"[ROV PHYSICS] Error: {e}")
                     # Fallback to legacy control on error
