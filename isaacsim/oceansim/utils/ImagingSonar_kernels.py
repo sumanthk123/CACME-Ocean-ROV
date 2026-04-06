@@ -151,7 +151,7 @@ def make_sonar_map_all(r: wp.array(ndim=2, dtype=wp.float32),
     intensity[i,j] = intensity[i,j]/max_intensity[0]
     intensity[i,j] += offset
     intensity[i,j] *= gain
-    intensity[i,j] *= (0.5 + gau_noise[i,j])
+    intensity[i,j] *= (1.0 + gau_noise[i,j])
     intensity[i,j] += range_ray_noise[i,j]
     intensity[i,j] = wp.clamp(intensity[i,j], wp.float32(0.0), wp.float32(1.0))
 
@@ -159,7 +159,7 @@ def make_sonar_map_all(r: wp.array(ndim=2, dtype=wp.float32),
                           r[i,j] * wp.sin(azi[i,j]),
                           intensity[i,j])
 
-@wp.kernel 
+@wp.kernel
 def make_sonar_map_range(r: wp.array(ndim=2, dtype=wp.float32),
                        azi: wp.array(ndim=2, dtype=wp.float32),
                        intensity: wp.array(ndim=2, dtype=wp.float32),
@@ -174,7 +174,7 @@ def make_sonar_map_range(r: wp.array(ndim=2, dtype=wp.float32),
     if max_intensity[i] !=0:
         intensity[i,j] = intensity[i,j]/max_intensity[i]
 
-    intensity[i,j] *= (0.5 + gau_noise[i,j])
+    intensity[i,j] *= (1.0 + gau_noise[i,j])
     intensity[i,j] += range_ray_noise[i,j]
     intensity[i,j] += offset
     intensity[i,j] *= gain

@@ -28,4 +28,4 @@ def get_params(name):
 
 def set_params(name, params):
     if name in _sonar_params:
-        _sonar_params[name] = params
+        _sonar_params[name].update(params)

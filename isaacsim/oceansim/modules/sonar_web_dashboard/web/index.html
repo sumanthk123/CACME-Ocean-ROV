@@ -3,21 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OceanSim Sonar Dashboard</title>
+    <title>OceanSim Dashboard</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <!-- Top bar -->
     <header class="top-bar">
         <div class="top-bar-left">
             <h1>OceanSim</h1>
-            <span class="subtitle">Sonar Parameter Tuning</span>
+            <span class="subtitle">Dashboard</span>
         </div>
         <div class="top-bar-center">
-            <label>Sensor:
-                <select id="sonar-select">
-                    <option value="">-- no sonars detected --</option>
+            <label>Feed:
+                <select id="feed-select">
+                    <option value="sonar">Sonar</option>
+                    <option value="camera">UW Camera</option>
                 </select>
+            </label>
+            <label id="sonar-select-label">Sensor:
+                <select id="sonar-select"><option value="">-- no sonars --</option></select>
+            </label>
+            <label id="camera-select-label" class="hidden">Camera:
+                <select id="camera-select"><option value="">-- no cameras --</option></select>
             </label>
             <div class="ws-status-inline">
                 <span class="status-dot waiting" id="ws-dot"></span>
@@ -26,23 +32,15 @@
             </div>
         </div>
         <div class="top-bar-right">
-            <button class="btn btn-small btn-toggle" id="mode-single" title="Single view">Single</button>
-            <button class="btn btn-small" id="mode-compare" title="A/B comparison">Compare</button>
-            <button class="btn btn-small" id="mode-sweep" title="Parameter sweep demo">Sweep</button>
+            <button class="btn btn-small btn-toggle" id="mode-single">Single</button>
+            <button class="btn btn-small" id="mode-compare">Compare</button>
         </div>
     </header>
 
-    <!-- Main content -->
     <div class="main">
-
-        <!-- ========== SINGLE VIEW ========== -->
         <div class="view-mode" id="view-single">
-            <div class="sonar-panel">
-                <img id="sonar-image" alt="Sonar output - load a scene to begin">
-            </div>
+            <div class="sonar-panel"><img id="sonar-image" alt="Load a scene to begin"></div>
         </div>
-
-        <!-- ========== A/B COMPARE VIEW ========== -->
         <div class="view-mode hidden" id="view-compare">
             <div class="compare-container">
                 <div class="compare-side">
@@ -61,142 +59,140 @@
             </div>
         </div>
 
-        <!-- ========== SWEEP VIEW ========== -->
-        <div class="view-mode hidden" id="view-sweep">
-            <div class="sweep-display">
-                <img id="sweep-image" class="sweep-img" alt="Sweep">
-                <div class="sweep-overlay">
-                    <span id="sweep-param-label"></span>
-                    <span id="sweep-param-value"></span>
-                </div>
-            </div>
-            <div class="sweep-controls">
-                <label>Parameter:
-                    <select id="sweep-param">
-                        <option value="attenuation">Attenuation</option>
-                        <option value="gau_noise_param">Gaussian Noise</option>
-                        <option value="ray_noise_param">Rayleigh Noise</option>
-                        <option value="intensity_offset">Intensity Offset</option>
-                        <option value="intensity_gain">Intensity Gain</option>
-                        <option value="central_peak">Central Peak</option>
-                        <option value="central_std">Central Std</option>
-                    </select>
-                </label>
-                <label>From: <input type="number" id="sweep-from" value="0" step="0.1" class="sweep-num"></label>
-                <label>To: <input type="number" id="sweep-to" value="1" step="0.1" class="sweep-num"></label>
-                <label>Steps: <input type="number" id="sweep-steps" value="10" min="3" max="30" class="sweep-num"></label>
-                <label>Speed:
-                    <select id="sweep-speed">
-                        <option value="500">Slow</option>
-                        <option value="300" selected>Medium</option>
-                        <option value="150">Fast</option>
-                    </select>
-                </label>
-                <button class="btn btn-accent" id="sweep-start-btn">Start Sweep</button>
-                <button class="btn btn-small hidden" id="sweep-stop-btn">Stop</button>
-            </div>
-        </div>
-
-        <!-- ========== RIGHT PANEL (always visible) ========== -->
         <div class="controls-panel">
-            <div class="panel-section">
-                <h3>Presets</h3>
-                <div class="preset-grid" id="preset-grid"></div>
-                <div class="preset-actions">
-                    <input type="text" id="preset-name-input" placeholder="Preset name..." class="preset-name-input">
-                    <button class="btn btn-small btn-accent" id="save-preset-btn">Save</button>
+            <div class="tab-bar">
+                <button class="tab-btn active" data-tab="tab-sonar">Sonar</button>
+                <button class="tab-btn" data-tab="tab-environment">Environment</button>
+                <button class="tab-btn" data-tab="tab-objects">Objects</button>
+            </div>
+
+            <!-- TAB: SONAR -->
+            <div class="tab-content active" id="tab-sonar">
+                <div class="panel-section">
+                    <h3>Presets</h3>
+                    <div class="preset-grid" id="preset-grid"></div>
+                    <div class="preset-actions">
+                        <input type="text" id="preset-name-input" placeholder="Preset name..." class="preset-name-input">
+                        <button class="btn btn-small btn-accent" id="save-preset-btn">Save</button>
+                    </div>
+                </div>
+                <div class="panel-divider"></div>
+                <div class="panel-section">
+                    <h3>Parameters</h3>
+                    <div class="control-group"><label>Binning Method</label><select id="binning_method"><option value="sum">sum</option><option value="mean">mean</option></select></div>
+                    <div class="control-group"><label>Normalizing Method</label><select id="normalizing_method"><option value="range">range</option><option value="all">all</option></select></div>
+                    <div class="control-group"><label>Attenuation <span class="reset-btn" data-param="attenuation">&#x21ba;</span></label><div class="control-row"><input type="range" id="attenuation-slider" min="0" max="1" step="0.01" value="0.1"><input type="number" id="attenuation-num" min="0" max="1" step="0.01" value="0.1"></div></div>
+                    <div class="control-group"><label>Gaussian Noise <span class="reset-btn" data-param="gau_noise_param">&#x21ba;</span></label><div class="control-row"><input type="range" id="gau_noise_param-slider" min="0" max="1" step="0.01" value="0.2"><input type="number" id="gau_noise_param-num" min="0" max="1" step="0.01" value="0.2"></div></div>
+                    <div class="control-group"><label>Rayleigh Noise <span class="reset-btn" data-param="ray_noise_param">&#x21ba;</span></label><div class="control-row"><input type="range" id="ray_noise_param-slider" min="0" max="0.5" step="0.005" value="0.05"><input type="number" id="ray_noise_param-num" min="0" max="0.5" step="0.005" value="0.05"></div></div>
+                    <div class="control-group"><label>Intensity Offset <span class="reset-btn" data-param="intensity_offset">&#x21ba;</span></label><div class="control-row"><input type="range" id="intensity_offset-slider" min="-1" max="1" step="0.01" value="0"><input type="number" id="intensity_offset-num" min="-1" max="1" step="0.01" value="0"></div></div>
+                    <div class="control-group"><label>Intensity Gain <span class="reset-btn" data-param="intensity_gain">&#x21ba;</span></label><div class="control-row"><input type="range" id="intensity_gain-slider" min="0.1" max="5" step="0.1" value="1"><input type="number" id="intensity_gain-num" min="0.1" max="5" step="0.1" value="1"></div></div>
+                    <div class="control-group"><label>Central Peak <span class="reset-btn" data-param="central_peak">&#x21ba;</span></label><div class="control-row"><input type="range" id="central_peak-slider" min="0" max="10" step="0.1" value="2"><input type="number" id="central_peak-num" min="0" max="10" step="0.1" value="2"></div></div>
+                    <div class="control-group"><label>Central Std <span class="reset-btn" data-param="central_std">&#x21ba;</span></label><div class="control-row"><input type="range" id="central_std-slider" min="0.0001" max="0.1" step="0.0001" value="0.001"><input type="number" id="central_std-num" min="0.0001" max="0.1" step="0.0001" value="0.001"></div></div>
+                </div>
+                <div class="panel-divider"></div>
+                <button class="btn btn-primary" id="apply-btn">Apply Parameters</button>
+                <label id="auto-apply-label"><input type="checkbox" id="auto-apply" checked> Live update</label>
+                <button class="btn btn-secondary" id="reset-all-btn">Reset to Defaults</button>
+                <button class="btn btn-secondary" id="download-btn">Download Raw Data</button>
+                <div class="sonar-info" id="sonar-info"></div>
+            </div>
+
+            <!-- TAB: ENVIRONMENT -->
+            <div class="tab-content" id="tab-environment">
+                <!-- Quick presets: one click sets everything (sonar + camera + lighting) -->
+                <div class="panel-section">
+                    <h3>Water Condition Presets</h3>
+                    <p class="text-muted" style="margin:0 0 8px;font-size:12px">Sets sonar acoustics + camera visuals together</p>
+                    <div class="env-preset-grid" id="water-condition-preset-grid"></div>
+                    <label class="env-auto-apply-label"><input type="checkbox" id="env-auto-apply" checked> Live update</label>
+                </div>
+                <div class="panel-divider"></div>
+
+                <!-- Sonar acoustic fine-tuning -->
+                <div class="panel-section">
+                    <h3 class="section-toggle" data-target="env-acoustic-section">Sonar Acoustics &#x25BE;</h3>
+                    <div id="env-acoustic-section">
+                        <p class="text-muted" style="margin:0 0 8px;font-size:12px">Fine-tune how sonar responds to water conditions</p>
+                        <div class="control-group"><label>Attenuation <span class="reset-btn env-reset" data-env-param="acoustic_attenuation">&#x21ba;</span></label><div class="control-row"><input type="range" id="acoustic_attenuation-slider" min="0" max="1" step="0.01" value="0.2"><input type="number" id="acoustic_attenuation-num" min="0" max="1" step="0.01" value="0.2"></div></div>
+                        <div class="control-group"><label>Gaussian Noise <span class="reset-btn env-reset" data-env-param="gau_noise">&#x21ba;</span></label><div class="control-row"><input type="range" id="gau_noise-slider" min="0" max="1" step="0.01" value="0.05"><input type="number" id="gau_noise-num" min="0" max="1" step="0.01" value="0.05"></div></div>
+                        <div class="control-group"><label>Rayleigh Noise <span class="reset-btn env-reset" data-env-param="ray_noise">&#x21ba;</span></label><div class="control-row"><input type="range" id="ray_noise-slider" min="0" max="0.5" step="0.005" value="0.02"><input type="number" id="ray_noise-num" min="0" max="0.5" step="0.005" value="0.02"></div></div>
+                        <button class="btn btn-secondary" id="env-acoustic-reset-btn">Reset Defaults</button>
+                    </div>
+                </div>
+                <div class="panel-divider"></div>
+
+                <!-- Camera underwater rendering -->
+                <div class="panel-section">
+                    <h3 class="section-toggle" data-target="env-water-section">Camera Underwater Rendering &#x25BE;</h3>
+                    <div id="env-water-section">
+                        <p class="text-muted" style="margin:0 0 8px;font-size:12px">Controls how the underwater camera image looks</p>
+                        <div class="control-group-label">Backscatter Color</div>
+                        <div class="control-group"><label>Red <span class="reset-btn env-reset" data-env-param="backscatter_r">&#x21ba;</span></label><div class="control-row"><input type="range" id="backscatter_r-slider" min="0" max="1" step="0.01" value="0.0"><input type="number" id="backscatter_r-num" min="0" max="1" step="0.01" value="0.0"></div></div>
+                        <div class="control-group"><label>Green <span class="reset-btn env-reset" data-env-param="backscatter_g">&#x21ba;</span></label><div class="control-row"><input type="range" id="backscatter_g-slider" min="0" max="1" step="0.01" value="0.31"><input type="number" id="backscatter_g-num" min="0" max="1" step="0.01" value="0.31"></div></div>
+                        <div class="control-group"><label>Blue <span class="reset-btn env-reset" data-env-param="backscatter_b">&#x21ba;</span></label><div class="control-row"><input type="range" id="backscatter_b-slider" min="0" max="1" step="0.01" value="0.24"><input type="number" id="backscatter_b-num" min="0" max="1" step="0.01" value="0.24"></div></div>
+                        <div class="control-group-label">Backscatter Coefficients</div>
+                        <div class="control-group"><label>Red <span class="reset-btn env-reset" data-env-param="backscatter_coeff_r">&#x21ba;</span></label><div class="control-row"><input type="range" id="backscatter_coeff_r-slider" min="0" max="1" step="0.01" value="0.05"><input type="number" id="backscatter_coeff_r-num" min="0" max="1" step="0.01" value="0.05"></div></div>
+                        <div class="control-group"><label>Green <span class="reset-btn env-reset" data-env-param="backscatter_coeff_g">&#x21ba;</span></label><div class="control-row"><input type="range" id="backscatter_coeff_g-slider" min="0" max="1" step="0.01" value="0.05"><input type="number" id="backscatter_coeff_g-num" min="0" max="1" step="0.01" value="0.05"></div></div>
+                        <div class="control-group"><label>Blue <span class="reset-btn env-reset" data-env-param="backscatter_coeff_b">&#x21ba;</span></label><div class="control-row"><input type="range" id="backscatter_coeff_b-slider" min="0" max="1" step="0.01" value="0.2"><input type="number" id="backscatter_coeff_b-num" min="0" max="1" step="0.01" value="0.2"></div></div>
+                        <div class="control-group-label">Attenuation Coefficients</div>
+                        <div class="control-group"><label>Red <span class="reset-btn env-reset" data-env-param="attenuation_coeff_r">&#x21ba;</span></label><div class="control-row"><input type="range" id="attenuation_coeff_r-slider" min="0" max="1" step="0.01" value="0.05"><input type="number" id="attenuation_coeff_r-num" min="0" max="1" step="0.01" value="0.05"></div></div>
+                        <div class="control-group"><label>Green <span class="reset-btn env-reset" data-env-param="attenuation_coeff_g">&#x21ba;</span></label><div class="control-row"><input type="range" id="attenuation_coeff_g-slider" min="0" max="1" step="0.01" value="0.05"><input type="number" id="attenuation_coeff_g-num" min="0" max="1" step="0.01" value="0.05"></div></div>
+                        <div class="control-group"><label>Blue <span class="reset-btn env-reset" data-env-param="attenuation_coeff_b">&#x21ba;</span></label><div class="control-row"><input type="range" id="attenuation_coeff_b-slider" min="0" max="1" step="0.01" value="0.05"><input type="number" id="attenuation_coeff_b-num" min="0" max="1" step="0.01" value="0.05"></div></div>
+                        <button class="btn btn-secondary" id="env-water-reset-btn">Reset Defaults</button>
+                    </div>
+                </div>
+                <div class="panel-divider"></div>
+
+                <!-- Lighting -->
+                <div class="panel-section">
+                    <h3 class="section-toggle" data-target="env-lighting-section">Lighting &#x25BE;</h3>
+                    <div id="env-lighting-section">
+                        <div class="env-preset-grid" id="lighting-preset-grid"></div>
+                        <div class="control-group"><label>Enabled</label><select id="lighting_enabled"><option value="true">On</option><option value="false">Off</option></select></div>
+                        <div class="control-group"><label>Intensity <span class="reset-btn env-reset" data-env-param="lighting_intensity">&#x21ba;</span></label><div class="control-row"><input type="range" id="lighting_intensity-slider" min="0" max="200000" step="1000" value="50000"><input type="number" id="lighting_intensity-num" min="0" max="200000" step="1000" value="50000"></div></div>
+                        <div class="control-group"><label>Color Temp (K) <span class="reset-btn env-reset" data-env-param="lighting_color_temperature">&#x21ba;</span></label><div class="control-row"><input type="range" id="lighting_color_temperature-slider" min="1000" max="12000" step="100" value="6500"><input type="number" id="lighting_color_temperature-num" min="1000" max="12000" step="100" value="6500"></div></div>
+                        <div class="control-group"><label>Elevation <span class="reset-btn env-reset" data-env-param="lighting_elevation">&#x21ba;</span></label><div class="control-row"><input type="range" id="lighting_elevation-slider" min="-90" max="90" step="1" value="45"><input type="number" id="lighting_elevation-num" min="-90" max="90" step="1" value="45"></div></div>
+                        <div class="control-group"><label>Azimuth <span class="reset-btn env-reset" data-env-param="lighting_azimuth">&#x21ba;</span></label><div class="control-row"><input type="range" id="lighting_azimuth-slider" min="-180" max="180" step="1" value="0"><input type="number" id="lighting_azimuth-num" min="-180" max="180" step="1" value="0"></div></div>
+                        <button class="btn btn-secondary" id="env-lighting-reset-btn">Reset Defaults</button>
+                    </div>
                 </div>
             </div>
 
-            <div class="panel-divider"></div>
-
-            <div class="panel-section">
-                <h3>Parameters</h3>
-
-                <div class="control-group">
-                    <label>Binning Method</label>
-                    <select id="binning_method">
-                        <option value="sum">sum</option>
-                        <option value="mean">mean</option>
-                    </select>
-                </div>
-
-                <div class="control-group">
-                    <label>Normalizing Method</label>
-                    <select id="normalizing_method">
-                        <option value="range">range</option>
-                        <option value="all">all</option>
-                    </select>
-                </div>
-
-                <div class="control-group">
-                    <label>Attenuation <span class="reset-btn" data-param="attenuation" title="Reset to default">&#x21ba;</span></label>
-                    <div class="control-row">
-                        <input type="range" id="attenuation-slider" min="0" max="1" step="0.01" value="0.1">
-                        <input type="number" id="attenuation-num" min="0" max="1" step="0.01" value="0.1">
+            <!-- TAB: OBJECTS -->
+            <div class="tab-content" id="tab-objects">
+                <div class="panel-section">
+                    <h3>Add Object</h3>
+                    <div class="control-group"><label>Asset</label><select id="obj-asset-select"><option value="">Loading assets...</option></select></div>
+                    <div class="control-group"><label>Name</label><input type="text" id="obj-name" class="preset-name-input" placeholder="rock_01" style="width:100%"></div>
+                    <div class="control-group-label">Position</div>
+                    <div class="xyz-row">
+                        <label>X<input type="number" id="obj-pos-x" value="0" step="0.1"></label>
+                        <label>Y<input type="number" id="obj-pos-y" value="0" step="0.1"></label>
+                        <label>Z<input type="number" id="obj-pos-z" value="-1" step="0.1"></label>
                     </div>
-                </div>
-
-                <div class="control-group">
-                    <label>Gaussian Noise <span class="reset-btn" data-param="gau_noise_param" title="Reset to default">&#x21ba;</span></label>
-                    <div class="control-row">
-                        <input type="range" id="gau_noise_param-slider" min="0" max="1" step="0.01" value="0.2">
-                        <input type="number" id="gau_noise_param-num" min="0" max="1" step="0.01" value="0.2">
+                    <div class="control-group-label">Rotation (deg)</div>
+                    <div class="xyz-row">
+                        <label>X<input type="number" id="obj-rot-x" value="0" step="5"></label>
+                        <label>Y<input type="number" id="obj-rot-y" value="0" step="5"></label>
+                        <label>Z<input type="number" id="obj-rot-z" value="0" step="5"></label>
                     </div>
-                </div>
-
-                <div class="control-group">
-                    <label>Rayleigh Noise <span class="reset-btn" data-param="ray_noise_param" title="Reset to default">&#x21ba;</span></label>
-                    <div class="control-row">
-                        <input type="range" id="ray_noise_param-slider" min="0" max="0.5" step="0.005" value="0.05">
-                        <input type="number" id="ray_noise_param-num" min="0" max="0.5" step="0.005" value="0.05">
+                    <div class="control-group-label">Scale</div>
+                    <div class="xyz-row">
+                        <label>X<input type="number" id="obj-scl-x" value="1" step="0.1" min="0.01"></label>
+                        <label>Y<input type="number" id="obj-scl-y" value="1" step="0.1" min="0.01"></label>
+                        <label>Z<input type="number" id="obj-scl-z" value="1" step="0.1" min="0.01"></label>
                     </div>
+                    <div class="control-group"><label>Material</label><select id="obj-material-select"><option value="custom">Custom</option></select></div>
+                    <div class="control-group"><label>Sonar Reflectivity</label><div class="control-row"><input type="range" id="obj-reflectivity-slider" min="0" max="5" step="0.01" value="1.0"><input type="number" id="obj-reflectivity-num" min="0" max="5" step="0.01" value="1.0"></div></div>
+                    <button class="btn btn-primary" id="spawn-btn">Spawn Object</button>
                 </div>
-
-                <div class="control-group">
-                    <label>Intensity Offset <span class="reset-btn" data-param="intensity_offset" title="Reset to default">&#x21ba;</span></label>
-                    <div class="control-row">
-                        <input type="range" id="intensity_offset-slider" min="-1" max="1" step="0.01" value="0">
-                        <input type="number" id="intensity_offset-num" min="-1" max="1" step="0.01" value="0">
-                    </div>
-                </div>
-
-                <div class="control-group">
-                    <label>Intensity Gain <span class="reset-btn" data-param="intensity_gain" title="Reset to default">&#x21ba;</span></label>
-                    <div class="control-row">
-                        <input type="range" id="intensity_gain-slider" min="0.1" max="5" step="0.1" value="1">
-                        <input type="number" id="intensity_gain-num" min="0.1" max="5" step="0.1" value="1">
-                    </div>
-                </div>
-
-                <div class="control-group">
-                    <label>Central Peak <span class="reset-btn" data-param="central_peak" title="Reset to default">&#x21ba;</span></label>
-                    <div class="control-row">
-                        <input type="range" id="central_peak-slider" min="0" max="10" step="0.1" value="2">
-                        <input type="number" id="central_peak-num" min="0" max="10" step="0.1" value="2">
-                    </div>
-                </div>
-
-                <div class="control-group">
-                    <label>Central Std <span class="reset-btn" data-param="central_std" title="Reset to default">&#x21ba;</span></label>
-                    <div class="control-row">
-                        <input type="range" id="central_std-slider" min="0.0001" max="0.1" step="0.0001" value="0.001">
-                        <input type="number" id="central_std-num" min="0.0001" max="0.1" step="0.0001" value="0.001">
-                    </div>
+                <div class="panel-divider"></div>
+                <div class="panel-section">
+                    <h3>Spawned Objects</h3>
+                    <div id="spawned-list"><p class="text-muted">No objects spawned</p></div>
+                    <button class="btn btn-secondary" id="refresh-objects-btn">Refresh List</button>
                 </div>
             </div>
-
-            <div class="panel-divider"></div>
-
-            <button class="btn btn-primary" id="apply-btn">Apply Parameters</button>
-            <label id="auto-apply-label">
-                <input type="checkbox" id="auto-apply" checked> Live update
-            </label>
-
-            <button class="btn btn-secondary" id="reset-all-btn">Reset to Defaults</button>
-            <button class="btn btn-secondary" id="download-btn">Download Raw Data</button>
-
-            <div class="sonar-info" id="sonar-info"></div>
         </div>
     </div>
     <script src="app.js"></script>

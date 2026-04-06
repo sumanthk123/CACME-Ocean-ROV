@@ -27,31 +27,6 @@ class UW_Camera(Camera):
                  translation = None, 
                  render_product_path = None):
         
-        """Initialize an underwater camera sensor.
-    
-        Args:
-            prim_path (str): prim path of the Camera Prim to encapsulate or create.
-            name (str, optional): shortname to be used as a key by Scene class.
-                                    Note: needs to be unique if the object is added to the Scene.
-                                    Defaults to "UW_Camera".
-            frequency (Optional[int], optional): Frequency of the sensor (i.e: how often is the data frame updated).
-                                                Defaults to None.
-            dt (Optional[str], optional): dt of the sensor (i.e: period at which a the data frame updated). Defaults to None.
-            resolution (Optional[Tuple[int, int]], optional): resolution of the camera (width, height). Defaults to None.
-            position (Optional[Sequence[float]], optional): position in the world frame of the prim. shape is (3, ).
-                                                        Defaults to None, which means left unchanged.
-            translation (Optional[Sequence[float]], optional): translation in the local frame of the prim
-                                                            (with respect to its parent prim). shape is (3, ).
-                                                            Defaults to None, which means left unchanged.
-            orientation (Optional[Sequence[float]], optional): quaternion orientation in the world/ local frame of the prim
-                                                            (depends if translation or position is specified).
-                                                            quaternion is scalar-first (w, x, y, z). shape is (4, ).
-                                                            Defaults to None, which means left unchanged.
-            render_product_path (str): path to an existing render product, will be used instead of creating a new render product
-                                    the resolution and camera attached to this render product will be set based on the input arguments.
-                                    Note: Using same render product path on two Camera objects with different camera prims, resolutions is not supported
-                                    Defaults to None
-        """
         self._name = name
         self._prim_path = prim_path
         self._res = resolution
@@ -66,20 +41,6 @@ class UW_Camera(Camera):
                    UW_yaml_path: str = None,
                    physics_sim_view=None):
         
-        """Configure underwater rendering properties and initialize pipelines.
-    
-        Args:
-            UW_param (np.ndarray, optional): Underwater parameters array:
-                [0:3] - Backscatter value (RGB)
-                [3:6] - Attenuation coefficients (RGB)
-                [6:9] - Backscatter coefficients (RGB)
-                Defaults to typical coastal water values.
-            viewport (bool, optional): Enable viewport visualization. Defaults to True.
-            writing_dir (str, optional): Directory to save rendered images. Defaults to None.
-            UW_yaml_path (str, optional): Path to YAML file with water properties. Defaults to None.
-            physics_sim_view (_type_, optional): _description_. Defaults to None.            
-    
-        """
         self._id = 0
         self._viewport = viewport
         self._device = wp.get_preferred_device()
@@ -88,7 +49,6 @@ class UW_Camera(Camera):
         if UW_yaml_path is not None:
             with open(UW_yaml_path, 'r') as file:
                 try:
-                    # Load the YAML content
                     yaml_content = yaml.safe_load(file)
                     self._backscatter_value = wp.vec3f(*yaml_content['backscatter_value'])
                     self._atten_coeff = wp.vec3f(*yaml_content['atten_coeff'])
@@ -120,12 +80,6 @@ class UW_Camera(Camera):
         print(f'[{self._name}] Initialized successfully. Data writing: {self._writing}')
     
     def render(self):
-        """Process and display a single frame with underwater effects.
-    
-        Note:
-            - Updates viewport display if enabled
-            - Saves image to disk if writing_dir was specified
-        """
         raw_rgba = self._rgba_annot.get_data()
         depth = self._depth_annot.get_data()
         if raw_rgba.size !=0:
@@ -147,6 +101,7 @@ class UW_Camera(Camera):
             
             if self._viewport:
                 self._provider.set_bytes_data_from_gpu(uw_image.ptr, self.get_resolution())
+            self.uw_image = uw_image
             if self._writing:
                 self._writing_backend.schedule(write_image, path=f'UW_image_{self._id}.png', data=uw_image)
                 print(f'[{self._name}] [{self._id}] Rendered image saved to {self._writing_backend.output_dir}')
@@ -154,12 +109,6 @@ class UW_Camera(Camera):
             self._id += 1
 
     def make_viewport(self):
-        """Create a viewport window for real-time visualization.
-    
-        Note:
-            - Window size fixed at 1280x760 pixels
-        """
-    
         self.wrapped_ui_elements = []
         self.window = ui.Window(self._name, width=1280, height=720 + 40, visible=True)
         self._provider = ui.ByteImageProvider()
@@ -177,14 +126,7 @@ class UW_Camera(Camera):
         self.wrapped_ui_elements.append(self._provider)
         self.wrapped_ui_elements.append(self.window)
 
-    # Detach the annotator from render product and clear the data cache
     def close(self):
-        """Clean up resources by detaching annotators and clearing caches.
-    
-        Note:
-            - Required for proper shutdown when done using the sensor
-            - Also closes viewport window if one was created
-        """
         self._rgba_annot.detach(self._render_product_path)
         self._depth_annot.detach(self._render_product_path)
 
@@ -196,16 +138,6 @@ class UW_Camera(Camera):
             
         print(f'[{self._name}] Annotator detached. AnnotatorCache cleaned.')
     
-    
     def ui_destroy(self):
-        """Explicitly destroy viewport UI elements.
-    
-        Note:
-            - Called automatically by close()
-            - Only needed if manually managing UI lifecycle
-        """
         for elem in self.wrapped_ui_elements:
             elem.destroy()
-
-        
-       

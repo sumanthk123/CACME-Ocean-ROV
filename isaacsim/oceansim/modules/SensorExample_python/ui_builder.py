@@ -34,6 +34,7 @@ class UIBuilder():
         self._extension_path = get_extension_path(self._ext_id)
         
         self._ctrl_mode = 'Manual control'
+        self._use_rov_physics = False
         self._waypoints_path = self._extension_path + '/demo/demo_waypoints.txt'
         # Get access to the timeline to control stop/pause/play programmatically
         self._timeline = omni.timeline.get_timeline_interface()
@@ -179,6 +180,16 @@ class UIBuilder():
                     on_clicked_fn=self._on_ctrl_mode_dropdown_clicked
                 )
 
+                # ROV Physics checkbox temporarily disabled for debugging
+                # with ui.HStack(spacing=8, height=0):
+                #     ui.Label("ROV Physics Model", width=150)
+                #     self._rov_physics_cb = ui.CheckBox(width=20)
+                #     self._rov_physics_cb.model.set_value(False)
+                #     self._rov_physics_cb.model.add_value_changed_fn(
+                #         lambda m: setattr(self, '_use_rov_physics', m.get_value_as_bool())
+                #     )
+                #     ui.Label("(buoyancy, drag, thrusters)", style={"color": 0xFF888888, "font_size": 12})
+
                 self._load_btn = LoadButton(
                     "Load Button", "LOAD", setup_scene_fn=self._setup_scene, setup_post_load_fn=self._setup_scenario
                 )
@@ -311,14 +322,14 @@ class UIBuilder():
                                             orientation=euler_angles_to_quat(np.array([0.0, 45, 0.0]),  degrees=True),
                                             range_res=0.005,
                                             angular_res=0.25,
-                                            hori_res=4000
+                                            hori_res=2000
                                             )
             
         if self._use_camera:
             from isaacsim.oceansim.sensors.UW_Camera import UW_Camera
 
             self._cam = UW_Camera(prim_path=robot_prim_path + '/UW_camera',
-                                    resolution=[1920,1080],
+                                    resolution=[1280,720],
                                     translation=self._cam_trans)
             self._cam.set_focal_length(0.1 * self._cam_focal_length)
             self._cam.set_clipping_range(0.1, 100)
@@ -355,7 +366,7 @@ class UIBuilder():
 
     def _reset_scenario(self):
         self._scenario.teardown_scenario()
-        self._scenario.setup_scenario(self._rob, self._sonar, self._cam, self._DVL, self._baro, self._ctrl_mode)
+        self._scenario.setup_scenario(self._rob, self._sonar, self._cam, self._DVL, self._baro, self._ctrl_mode, use_rov_physics=self._use_rov_physics)
     def _on_post_reset_btn(self):
         """
         This function is attached to the Reset Button as the post_reset_fn callback.

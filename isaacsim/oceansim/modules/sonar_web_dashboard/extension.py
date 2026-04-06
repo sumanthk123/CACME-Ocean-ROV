@@ -14,15 +14,16 @@ class Extension(omni.ext.IExt):
         try:
             from fastapi.staticfiles import StaticFiles
             from omni.services.core import main
-            from .api import router as api_router, sonar_websocket
+            from .api import router as api_router, sonar_websocket, camera_websocket
 
             self._api_router = api_router
 
             # Register REST API routes
             main.register_router(router=api_router, tags=["sonar-dashboard"])
 
-            # Register WebSocket endpoint
+            # Register WebSocket endpoints
             main.register_websocket_endpoint("/ws/sonar/{name}", sonar_websocket)
+            main.register_websocket_endpoint("/ws/camera/{name}", camera_websocket)
 
             # Serve static web files
             web_dir = os.path.join(os.path.dirname(__file__), "web")
