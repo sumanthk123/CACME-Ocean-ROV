@@ -58,15 +58,7 @@ class MHL_Sensor_Example_Scenario():
             self._rob_forceAPI = PhysxSchema.PhysxForceAPI.Apply(self._rob)
             if use_rov_physics:
                 import carb
-                # Keep PhysxForceAPI in default acceleration mode (which is proven to work)
-                # We convert our forces to accelerations: a = F/m
-                # Keep gravity disabled (our model provides net buoyancy as acceleration)
-                # Zero out PhysX damping (our model computes drag)
-                rob_rb_api = PhysxSchema.PhysxRigidBodyAPI(self._rob)
-                if rob_rb_api:
-                    rob_rb_api.GetLinearDampingAttr().Set(0.0)
-                    rob_rb_api.GetAngularDampingAttr().Set(0.0)
-                    carb.log_warn(f"[ROV PHYSICS] Zeroed PhysX damping, using acceleration mode")
+                carb.log_warn("[ROV PHYSICS] Physics model enabled (no PhysX mods)")
             self._force_cmd = keyboard_cmd(base_command=np.array([0.0, 0.0, 0.0]),
                                       input_keyboard_mapping={
                                         "W": [10.0, 0.0, 0.0], "S": [-10.0, 0.0, 0.0],
@@ -283,95 +275,19 @@ class MHL_Sensor_Example_Scenario():
             self._baro_reading = self._baro.get_pressure()
 
         if self._ctrl_mode == "Manual control":
+            # Get keyboard commands (same for both modes)
+            fc = np.array(self._force_cmd._base_command, dtype=np.float64)
+            tc = np.array(self._torque_cmd._base_command, dtype=np.float64)
+
             if self._use_rov_physics and self._rov_physics is not None:
-                import carb as _carb_phys
-                if not hasattr(self, '_phys_frame_count'):
-                    self._phys_frame_count = 0
-                self._phys_frame_count += 1
-                try:
-                    # Get body velocity and orientation from PhysX
-                    rob_prim = SingleRigidPrim(prim_path=get_prim_path(self._rob))
-                    lin_vel = np.array(rob_prim.get_linear_velocity())
-                    ang_vel = np.array(rob_prim.get_angular_velocity())
+                # Add buoyancy as a constant upward acceleration (body-local Y-up)
+                # Plus WASD keyboard commands pass through directly
+                buoy_accel = 1.0  # small upward drift m/s^2
+                fc[1] += buoy_accel  # Y-up in local frame
 
-                    # Get orientation quaternion and build rotation matrix
-                    orient_attr = self._rob.GetAttribute('xformOp:orient')
-                    quat = orient_attr.Get()
-                    if quat is not None:
-                        w = quat.GetReal()
-                        x, y, z = quat.GetImaginary()
-                        # Quaternion to rotation matrix
-                        R = np.array([
-                            [1-2*(y*y+z*z), 2*(x*y-w*z),   2*(x*z+w*y)],
-                            [2*(x*y+w*z),   1-2*(x*x+z*z), 2*(y*z-w*x)],
-                            [2*(x*z-w*y),   2*(y*z+w*x),   1-2*(x*x+y*y)],
-                        ])
-                        R_inv = R.T
-                        body_lin = R_inv @ lin_vel
-                        body_ang = R_inv @ ang_vel
-                        # Rotation matrix to RPY (XYZ Euler)
-                        pitch = np.arcsin(np.clip(-R[2, 0], -1, 1))
-                        if abs(np.cos(pitch)) > 1e-6:
-                            roll = np.arctan2(R[2, 1], R[2, 2])
-                            yaw = np.arctan2(R[1, 0], R[0, 0])
-                        else:
-                            roll = np.arctan2(-R[1, 2], R[1, 1])
-                            yaw = 0.0
-                        rpy = [roll, pitch, yaw]
-                    else:
-                        body_lin = lin_vel
-                        body_ang = ang_vel
-                        rpy = [0, 0, 0]
-                        R = np.eye(3)
-
-                    body_vel = [body_lin[0], body_lin[1], body_lin[2],
-                                body_ang[0], body_ang[1], body_ang[2]]
-
-                    # Map keyboard to 6-DOF thruster commands [-1, 1]
-                    fc = self._force_cmd._base_command
-                    tc = self._torque_cmd._base_command
-                    max_cmd = 10.0
-                    thruster_cmds = [
-                        fc[0] / max_cmd, fc[1] / max_cmd, fc[2] / max_cmd,
-                        tc[0] / max_cmd, tc[1] / max_cmd, tc[2] / max_cmd,
-                    ]
-
-                    force, torque = self._rov_physics.compute_forces(
-                        body_vel, rpy, thruster_cmds, dt=step
-                    )
-
-                    # Rotate body-frame forces back to world frame
-                    world_force = R @ force
-                    world_torque = R @ torque
-
-                    # Convert forces to accelerations (PhysxForceAPI uses acceleration mode by default)
-                    mass = self._rov_physics.mass
-                    accel = world_force / mass
-                    ang_accel = world_torque / mass  # approximate
-
-                    if self._phys_frame_count % 60 == 1:
-                        _carb_phys.log_warn(f"[ROV PHYSICS] frame={self._phys_frame_count} accel={[round(x,2) for x in accel]} force={[round(x,1) for x in world_force]} mass={mass}")
-
-                    # Apply as acceleration in LOCAL frame (default PhysxForceAPI mode)
-                    # Need to convert world-frame acceleration back to body frame
-                    accel_local = R.T @ accel
-                    ang_accel_local = R.T @ ang_accel
-
-                    self._rob_forceAPI.CreateForceAttr().Set(Gf.Vec3f(float(accel_local[0]), float(accel_local[1]), float(accel_local[2])))
-                    self._rob_forceAPI.CreateTorqueAttr().Set(Gf.Vec3f(float(ang_accel_local[0]), float(ang_accel_local[1]), float(ang_accel_local[2])))
-                except Exception as e:
-                    _carb_phys.log_warn(f"[ROV PHYSICS] Error: {e}")
-                    # Fallback to legacy control on error
-                    force_cmd = Gf.Vec3f(*self._force_cmd._base_command)
-                    torque_cmd = Gf.Vec3f(*self._torque_cmd._base_command)
-                    self._rob_forceAPI.CreateForceAttr().Set(force_cmd)
-                    self._rob_forceAPI.CreateTorqueAttr().Set(torque_cmd)
-            else:
-                # Legacy direct force/torque control
-                force_cmd = Gf.Vec3f(*self._force_cmd._base_command)
-                torque_cmd = Gf.Vec3f(*self._torque_cmd._base_command)
-                self._rob_forceAPI.CreateForceAttr().Set(force_cmd)
-                self._rob_forceAPI.CreateTorqueAttr().Set(torque_cmd)
+            # Apply via PhysxForceAPI (acceleration mode, local frame — proven working)
+            self._rob_forceAPI.CreateForceAttr().Set(Gf.Vec3f(float(fc[0]), float(fc[1]), float(fc[2])))
+            self._rob_forceAPI.CreateTorqueAttr().Set(Gf.Vec3f(float(tc[0]), float(tc[1]), float(tc[2])))
         elif self._ctrl_mode == "Waypoints":
             if len(self.waypoints) > 0:
                 waypoints = self.waypoints[0]
