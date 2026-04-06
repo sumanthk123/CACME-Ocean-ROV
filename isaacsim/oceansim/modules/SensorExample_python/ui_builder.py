@@ -180,15 +180,14 @@ class UIBuilder():
                     on_clicked_fn=self._on_ctrl_mode_dropdown_clicked
                 )
 
-                # ROV Physics checkbox temporarily disabled for debugging
-                # with ui.HStack(spacing=8, height=0):
-                #     ui.Label("ROV Physics Model", width=150)
-                #     self._rov_physics_cb = ui.CheckBox(width=20)
-                #     self._rov_physics_cb.model.set_value(False)
-                #     self._rov_physics_cb.model.add_value_changed_fn(
-                #         lambda m: setattr(self, '_use_rov_physics', m.get_value_as_bool())
-                #     )
-                #     ui.Label("(buoyancy, drag, thrusters)", style={"color": 0xFF888888, "font_size": 12})
+                with ui.HStack(spacing=8, height=0):
+                    ui.Label("ROV Physics Model", width=150)
+                    self._rov_physics_cb = ui.CheckBox(width=20)
+                    self._rov_physics_cb.model.set_value(False)
+                    self._rov_physics_cb.model.add_value_changed_fn(
+                        lambda m: setattr(self, '_use_rov_physics', m.get_value_as_bool())
+                    )
+                    ui.Label("(buoyancy, drag, thrusters)", style={"color": 0xFF888888, "font_size": 12})
 
                 self._load_btn = LoadButton(
                     "Load Button", "LOAD", setup_scene_fn=self._setup_scene, setup_post_load_fn=self._setup_scenario
@@ -322,14 +321,14 @@ class UIBuilder():
                                             orientation=euler_angles_to_quat(np.array([0.0, 45, 0.0]),  degrees=True),
                                             range_res=0.005,
                                             angular_res=0.25,
-                                            hori_res=2000
+                                            hori_res=4000
                                             )
             
         if self._use_camera:
             from isaacsim.oceansim.sensors.UW_Camera import UW_Camera
 
             self._cam = UW_Camera(prim_path=robot_prim_path + '/UW_camera',
-                                    resolution=[1280,720],
+                                    resolution=[1920,1080],
                                     translation=self._cam_trans)
             self._cam.set_focal_length(0.1 * self._cam_focal_length)
             self._cam.set_clipping_range(0.1, 100)

@@ -272,10 +272,6 @@ class MHL_Sensor_Example_Scenario():
             self._baro_reading = self._baro.get_pressure()
 
         if self._ctrl_mode == "Manual control":
-            if not hasattr(self, '_physics_logged'):
-                import carb
-                carb.log_warn(f"[ROV] use_rov_physics={self._use_rov_physics}, rov_physics={self._rov_physics is not None}")
-                self._physics_logged = True
             if self._use_rov_physics and self._rov_physics is not None:
                 try:
                     # Get body velocity and orientation from PhysX
